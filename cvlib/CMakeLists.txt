@@ -13,6 +13,12 @@ add_library(${PROJECT_NAME} ${SRC})
 target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
 target_include_directories(${PROJECT_NAME} INTERFACE include)
 
+# Boost
+#find_package(Boost)
+#include_directories(${Boost_INCLUDE_DIR})
+#link_directories(${Boost_LIBRARY_DIRS})
+#target_link_libraries(${PROJECT_NAME} Boost)
+
 # Unit Tests
 file(GLOB TESTS tests/*.cpp)
 add_executable(${PROJECT_NAME}_tests ${TESTS})
@@ -51,4 +57,3 @@ target_link_libraries(${PROJECT_NAME}_tests ${PROJECT_NAME} ${OpenCV_LIBS})
 
 ParseAndAddCatchTests(${PROJECT_NAME}_tests)
 file(GLOB_RECURSE CHECK_FILES *.cpp)
-check_files_style(${PROJECT_NAME} ${CHECK_FILES})

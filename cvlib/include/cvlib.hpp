@@ -8,6 +8,7 @@
 #define __CVLIB_HPP__
 
 #include <opencv2/opencv.hpp>
+#include <boost/circular_buffer.hpp>
 
 namespace cvlib
 {
@@ -29,7 +30,7 @@ class motion_segmentation : public cv::BackgroundSubtractor
 {
     public:
     /// \brief ctor
-    motion_segmentation();
+    motion_segmentation(cv::Mat mean);
 
     /// \see cv::BackgroundSubtractor::apply
     void apply(cv::InputArray image, cv::OutputArray fgmask, double learningRate = -1) override;
@@ -42,6 +43,15 @@ class motion_segmentation : public cv::BackgroundSubtractor
 
     private:
     cv::Mat bg_model_;
+};
+
+class Buffer {
+private:
+    boost::circular_buffer<cv::Mat> _buffer;
+public:
+    Buffer(size_t buff_size);
+    void push_back(cv::Mat);
+    cv::Mat get_mean();
 };
 
 /// \brief FAST corner detection algorithm
