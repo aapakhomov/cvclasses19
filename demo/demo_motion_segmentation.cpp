@@ -13,24 +13,36 @@ int demo_motion_segmentation(int argc, char* argv[])
     if (!cap.isOpened())
         return -1;
 
-    auto mseg = cv::createBackgroundSubtractorMOG2(); // \todo use cvlib::motion_segmentation
+    static const auto buff_size = 10;
+    cvlib::Buffer buffer = cvlib::Buffer(buff_size);
+    for (auto idx = 0; idx < buff_size; ++idx)
+    {
+        cv::Mat frame;
+        cap >> frame;
+        buffer.push_back(frame);
+    }
+
+    auto mseg = cvlib::motion_segmentation(buffer.get_mean());
     const auto main_wnd = "orig";
     const auto demo_wnd = "demo";
 
     int threshold = 50;
     cv::namedWindow(main_wnd);
     cv::namedWindow(demo_wnd);
-    cv::createTrackbar("th", demo_wnd, &threshold, 255);
+    int rate_track = (int)(255.0 / buff_size);
+    double learning_rate = rate_track / 255.0;
+    cv::createTrackbar("rate", demo_wnd, &rate_track, 255);
+    
 
     cv::Mat frame;
     cv::Mat frame_mseg;
     while (cv::waitKey(30) != 27) // ESC
     {
         cap >> frame;
+        buffer.push_back(frame);
         cv::imshow(main_wnd, frame);
 
-        mseg->setVarThreshold(threshold); // \todo use TackbarCallback
-        mseg->apply(frame, frame_mseg);
+        mseg.apply(frame, frame_mseg, learning_rate);
         if (!frame_mseg.empty())
             cv::imshow(demo_wnd, frame_mseg);
     }
