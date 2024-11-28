@@ -18,14 +18,24 @@ cv::Ptr<corner_detector_fast> corner_detector_fast::create()
 
 bool test_candidate(const cv::Mat& img, cv::Point point, const std::vector<cv::Point>& offsets, int pixel_num_threshold)
 {
-    int count = 0;
+    int count_a = 0;
+    int count_b = 0;
+    int sz = offsets.size();
     const int threshold = 30;
     const auto pixel = img.at<uint8_t>(point);
-    for (const auto& offset : offsets)
+    for (int i = 0; i < 2 * sz; ++i)
     {
-        const auto offset_pixel = img.at<uint8_t>(point + offset);
-        if (offset_pixel < pixel - threshold || offset_pixel > pixel + threshold) ++count;
-        if (count >= pixel_num_threshold) return true;
+        int normed_iter = i % sz;
+        const auto offset_pixel = img.at<uint8_t>(point + offsets[normed_iter]);
+        if (offset_pixel < pixel - threshold) {
+            ++count_a;
+            count_b = 0;
+        }
+        if (offset_pixel > pixel + threshold) {
+            ++count_b;
+            count_a = 0;
+        }
+        if (count_a >= pixel_num_threshold || count_b >= pixel_num_threshold) return true;
     }
     return false;
 }
