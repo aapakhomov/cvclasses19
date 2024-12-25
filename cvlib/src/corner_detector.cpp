@@ -21,8 +21,8 @@ cv::Point make_point(int sigma)
     std::default_random_engine generator;
     // нормальное распределение показывает большую эффективность
     // в сравнении с другими способами генерации пар
-    std::normal_distribution<float> distribution_x(0, sigma);
-    std::normal_distribution<float> distribution_y(0, sigma);
+    static std::normal_distribution<float> distribution_x(0, sigma);
+    static std::normal_distribution<float> distribution_y(0, sigma);
     int x = std::round(distribution_x(generator));
     int y = std::round(distribution_y(generator));
     return {std::clamp(x, -sigma, sigma), std::clamp(y, -sigma, sigma)};
