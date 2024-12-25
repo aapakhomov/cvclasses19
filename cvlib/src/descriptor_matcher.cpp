@@ -8,6 +8,20 @@
 
 namespace cvlib
 {
+
+int get_distance(const cv::Mat q_desc, const cv::Mat t_desc) {
+    auto dist = 0;
+    for (auto i = 0; i < q_desc.cols; ++i) {
+        const auto q_desc_b = q_desc.at<uint8_t>(0, i);
+        const auto t_desc_b = t_desc.at<uint8_t>(0, i);
+
+        for (auto diff = q_desc_b ^ t_desc_b; diff > 0; diff >>= 1) {
+            if (diff & 0x1) ++dist;
+        }
+    }
+    return dist;
+}
+
 void descriptor_matcher::knnMatchImpl(cv::InputArray queryDescriptors, std::vector<std::vector<cv::DMatch>>& matches, int k /*unhandled*/,
                                       cv::InputArrayOfArrays masks /*unhandled*/, bool compactResult /*unhandled*/)
 {
@@ -19,11 +33,16 @@ void descriptor_matcher::knnMatchImpl(cv::InputArray queryDescriptors, std::vect
 
     matches.resize(q_desc.rows);
 
+    //auto distance = get_distance(q_desc, t_desc);
+
     cv::RNG rnd;
     for (int i = 0; i < q_desc.rows; ++i)
     {
-        // \todo implement Ratio of SSD check.
-        matches[i].emplace_back(i, rnd.uniform(0, t_desc.rows), FLT_MAX);
+        for (auto j = 0; j < t_desc.rows; ++j)
+        {
+            auto dst = get_distance(q_desc.row(i), t_desc.row(i));
+            if (dst < this->ratio_) matches[i].emplace_back(i, j, dst);
+        }
     }
 }
 
