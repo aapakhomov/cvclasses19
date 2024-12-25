@@ -5,7 +5,7 @@
  */
 
 #include "cvlib.hpp"
-
+#include <random>
 #include <ctime>
 
 namespace cvlib
@@ -14,6 +14,26 @@ namespace cvlib
 cv::Ptr<corner_detector_fast> corner_detector_fast::create()
 {
     return cv::makePtr<corner_detector_fast>();
+}
+
+cv::Point make_point(int sigma)
+{
+    std::default_random_engine generator;
+    // нормальное распределение показывает большую эффективность
+    // в сравнении с другими способами генерации пар
+    static std::normal_distribution<float> distribution_x(0, sigma);
+    static std::normal_distribution<float> distribution_y(0, sigma);
+    int x = std::round(distribution_x(generator));
+    int y = std::round(distribution_y(generator));
+    return {std::clamp(x, -sigma, sigma), std::clamp(y, -sigma, sigma)};
+}
+
+void make_point_pairs(std::vector<std::pair<cv::Point, cv::Point>> &pairs, const int descriptor_size, const int neighbours_num)
+{
+    pairs.clear();
+    const int pairs_num = neighbours_num / 2;
+    for (int i = 0; i < descriptor_size; i++)
+        pairs.push_back(std::make_pair(make_point(pairs_num), make_point(pairs_num)));
 }
 
 bool test_candidate(const cv::Mat& img, cv::Point point, const std::vector<cv::Point>& offsets, int pixel_num_threshold)
@@ -82,24 +102,42 @@ void corner_detector_fast::detect(cv::InputArray image, CV_OUT std::vector<cv::K
     }
 }
 
-void corner_detector_fast::compute(cv::InputArray, std::vector<cv::KeyPoint>& keypoints, cv::OutputArray descriptors)
-{
-    // \todo implement any binary descriptor
-    const int desc_length = 2;
-    descriptors.create(static_cast<int>(keypoints.size()), desc_length, CV_32S);
-    auto desc_mat = descriptors.getMat();
-    desc_mat.setTo(0);
+bool predicate(cv::Mat& img, cv::Point keypoint, std::pair<cv::Point, cv::Point> point) {
+    return img.at<uint8_t>(keypoint + point.first) < img.at<uint8_t>(keypoint + point.second); 
+}
 
-    int* ptr = reinterpret_cast<int*>(desc_mat.ptr());
-    for (const auto& pt : keypoints)
+void corner_detector_fast::compute(cv::InputArray image, std::vector<cv::KeyPoint>& keypoints, cv::OutputArray descriptors)
+{
+    cv::Mat img;
+    image.getMat().copyTo(img);
+    if (img.channels() == 3)
+        cv::cvtColor(img, img, cv::COLOR_BGR2GRAY);
+
+    std::vector<std::pair<cv::Point, cv::Point>> pairs;
+    auto descriptor_mat = descriptors.getMat();
+    descriptor_mat.setTo(0);
+
+    const int descriptor_size = 3;
+    descriptors.create(static_cast<int>(keypoints.size()), descriptor_size, CV_32S);
+    const int neighbours_num = 30;
+    descriptors.create(static_cast<int>(keypoints.size()), descriptor_size, CV_8U);
+    
+    make_point_pairs(pairs, descriptor_size, neighbours_num);
+
+    auto ptr = reinterpret_cast<uint8_t*>(descriptor_mat.ptr());
+    for (const auto& keypoint : keypoints)
     {
-        for (int i = 0; i < desc_length; ++i)
+        for (int i = 0; i < descriptor_size; ++i)
         {
-            *ptr = std::rand();
+            uint8_t descriptor = 0;
+            for (auto j = 0; j < pairs.size(); ++j)
+                descriptor |= (predicate(img, keypoint.pt, pairs.at(j)) << (pairs.size() - 1 - j));
+            *ptr = descriptor;
             ++ptr;
         }
     }
 }
+
 
 void corner_detector_fast::detectAndCompute(cv::InputArray image, cv::InputArray, std::vector<cv::KeyPoint>& keypoints, cv::OutputArray descriptors, bool /*= false*/)
 {
